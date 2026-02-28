@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub Activity Feed</title>
+  <style>
+    /* -----------------------------------------------------------------------
+       Reset & base
+    ----------------------------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    /* -----------------------------------------------------------------------
+       Header
+    ----------------------------------------------------------------------- */
+    header {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+
+    header h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #f0f6fc;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    header h1 svg { flex-shrink: 0; }
+
+    #status-badge {
+      font-size: .72rem;
+      font-weight: 500;
+      padding: .25rem .65rem;
+      border-radius: 2rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: color .3s;
+    }
+
+    #status-badge.live { color: #3fb950; border-color: #3fb950; }
+
+    #status-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* -----------------------------------------------------------------------
+       Feed container
+    ----------------------------------------------------------------------- */
+    #feed {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+
+    /* -----------------------------------------------------------------------
+       Event card
+    ----------------------------------------------------------------------- */
+    .event-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      animation: fadeSlideIn .3s ease both;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Left icon strip */
+    .event-icon {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem;
+    }
+
+    .icon-push   { background: #1f2d3d; color: #58a6ff; }
+    .icon-pr     { background: #1f2a1f; color: #3fb950; }
+    .icon-merge  { background: #2d1f3d; color: #bc8cff; }
+
+    /* Text */
+    .event-body { flex: 1; min-width: 0; }
+
+    .event-message {
+      font-size: .9rem;
+      line-height: 1.5;
+      color: #c9d1d9;
+      word-break: break-word;
+    }
+
+    .event-message strong {
+      color: #f0f6fc;
+      font-weight: 600;
+    }
+
+    .branch-tag {
+      display: inline-block;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 0 .4rem;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .8rem;
+      color: #79c0ff;
+      white-space: nowrap;
+    }
+
+    .event-time {
+      margin-top: .35rem;
+      font-size: .75rem;
+      color: #8b949e;
+    }
+
+    /* -----------------------------------------------------------------------
+       Empty & loading states
+    ----------------------------------------------------------------------- */
+    #empty-state {
+      width: 100%;
+      max-width: 760px;
+      text-align: center;
+      padding: 4rem 1rem;
+      color: #8b949e;
+      font-size: .9rem;
+      display: none;
+    }
+
+    #empty-state svg { margin-bottom: .75rem; opacity: .4; }
+
+    /* -----------------------------------------------------------------------
+       Footer ticker
+    ----------------------------------------------------------------------- */
+    footer {
+      margin-top: 2rem;
+      font-size: .72rem;
+      color: #8b949e;
+    }
+
+    #countdown { font-weight: 600; color: #58a6ff; }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>
+      <!-- GitHub Octocat icon (inline SVG) -->
+      <svg width="22" height="22" viewBox="0 0 16 16" fill="#c9d1d9"
+           aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+                 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                 -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+                 .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+                 -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0
+                 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82
+                 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01
+                 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      GitHub Activity Feed
+    </h1>
+    <div id="status-badge">
+      <span class="dot"></span>
+      <span id="status-text">connecting…</span>
+    </div>
+  </header>
+
+  <div id="feed" role="list" aria-live="polite" aria-label="GitHub events"></div>
+  <div id="empty-state" role="status">
+    <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1 13H7v-2h2v2zm0
+               -4H7V3h2v6z"/>
+    </svg>
+    <p>No events yet.<br>Push to your <code>action-repo</code> to get started.</p>
+  </div>
+
+  <footer>
+    Auto-refreshes in <span id="countdown">15</span>s
+  </footer>
+
+  <script>
+    /**
+     * GitHub Activity Feed — polling UI
+     * Polls /events every 15 seconds and renders only new events.
+     */
+    (function () {
+      "use strict";
+
+      const POLL_INTERVAL = 15; // seconds
+
+      const feedEl      = document.getElementById("feed");
+      const emptyEl     = document.getElementById("empty-state");
+      const statusBadge = document.getElementById("status-badge");
+      const statusText  = document.getElementById("status-text");
+      const countdownEl = document.getElementById("countdown");
+
+      // Track rendered event IDs so we never show the same event twice.
+      // Key: composite string of request_id + action + timestamp
+      const rendered = new Set();
+
+      let countdown = POLL_INTERVAL;
+
+      /* ------------------------------------------------------------------
+         Countdown ticker
+      ------------------------------------------------------------------ */
+      setInterval(() => {
+        countdown -= 1;
+        if (countdown < 0) countdown = POLL_INTERVAL;
+        countdownEl.textContent = countdown;
+      }, 1000);
+
+      /* ------------------------------------------------------------------
+         Status badge helpers
+      ------------------------------------------------------------------ */
+      function setStatus(text, live = false) {
+        statusText.textContent = text;
+        statusBadge.classList.toggle("live", live);
+      }
+
+      /* ------------------------------------------------------------------
+         Build a unique deduplication key for an event
+      ------------------------------------------------------------------ */
+      function eventKey(ev) {
+        return `${ev.request_id}|${ev.action}|${ev.timestamp}`;
+      }
+
+      /* ------------------------------------------------------------------
+         Format the human-readable message for each action type
+      ------------------------------------------------------------------ */
+      function buildMessage(ev) {
+        const author     = `<strong>"${escHtml(ev.author)}"</strong>`;
+        const fromBranch = `<span class="branch-tag">${escHtml(ev.from_branch)}</span>`;
+        const toBranch   = `<span class="branch-tag">${escHtml(ev.to_branch)}</span>`;
+
+        switch (ev.action) {
+          case "PUSH":
+            return `${author} pushed to ${toBranch}`;
+          case "PULL_REQUEST":
+            return `${author} submitted a pull request from ${fromBranch} to ${toBranch}`;
+          case "MERGE":
+            return `${author} merged branch ${fromBranch} to ${toBranch}`;
+          default:
+            return `${author} performed <strong>${escHtml(ev.action)}</strong>`;
+        }
+      }
+
+      /* ------------------------------------------------------------------
+         Icon config per action
+      ------------------------------------------------------------------ */
+      function iconConfig(action) {
+        switch (action) {
+          case "PUSH":
+            return {
+              cls: "icon-push",
+              // Upload / push arrow icon
+              svg: `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 2l4 4H9v4H7V6H4l4-4z"/>
+                    </svg>`
+            };
+          case "PULL_REQUEST":
+            return {
+              cls: "icon-pr",
+              svg: `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0
+                               01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75
+                               0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251
+                               2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1
+                               0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75
+                               0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/>
+                    </svg>`
+            };
+          case "MERGE":
+            return {
+              cls: "icon-merge",
+              svg: `<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M5 3.254V3.25v.005a.75.75 0 110-.005v.004zm.45 1.9a2.25 2.25
+                               0 10-1.95.218v5.256a2.25 2.25 0 101.5 0V7.123A5.735 5.735 0
+                               009.25 9h1.378a2.251 2.251 0 100-1.5H9.25a4.25 4.25 0
+                               01-3.8-2.346zM12.75 9a.75.75 0 100-1.5.75.75 0 000 1.5zm-8.5
+                               4.5a.75.75 0 100-1.5.75.75 0 000 1.5z"/>
+                    </svg>`
+            };
+          default:
+            return { cls: "icon-push", svg: "?" };
+        }
+      }
+
+      /* ------------------------------------------------------------------
+         Render a single new event card (prepended to top of feed)
+      ------------------------------------------------------------------ */
+      function renderEvent(ev) {
+        const key = eventKey(ev);
+        if (rendered.has(key)) return; // skip duplicates
+        rendered.add(key);
+
+        const icon = iconConfig(ev.action);
+
+        const card = document.createElement("div");
+        card.className = "event-card";
+        card.setAttribute("role", "listitem");
+        card.innerHTML = `
+          <div class="event-icon ${icon.cls}" aria-hidden="true">${icon.svg}</div>
+          <div class="event-body">
+            <p class="event-message">${buildMessage(ev)} on
+              <strong>${escHtml(ev.formatted_time || ev.timestamp)}</strong>
+            </p>
+            <p class="event-time">${escHtml(ev.action)}</p>
+          </div>`;
+
+        feedEl.prepend(card);
+      }
+
+      /* ------------------------------------------------------------------
+         Fetch latest events from the server
+      ------------------------------------------------------------------ */
+      async function fetchEvents() {
+        try {
+          const res = await fetch("/events");
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const events = await res.json();
+
+          // Process newest-first; renderEvent deduplicates internally
+          events.forEach(renderEvent);
+
+          emptyEl.style.display = rendered.size === 0 ? "block" : "none";
+          setStatus("live", true);
+        } catch (err) {
+          console.error("Poll error:", err);
+          setStatus("error – retrying…", false);
+        }
+
+        // Reset countdown after each poll
+        countdown = POLL_INTERVAL;
+      }
+
+      /* ------------------------------------------------------------------
+         Simple HTML escape to prevent XSS from repo/user data
+      ------------------------------------------------------------------ */
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      /* ------------------------------------------------------------------
+         Bootstrap: poll immediately, then every 15 seconds
+      ------------------------------------------------------------------ */
+      fetchEvents();
+      setInterval(fetchEvents, POLL_INTERVAL * 1000);
+
+    })();
+  </script>
+</body>
+</html>
