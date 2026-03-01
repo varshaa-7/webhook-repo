@@ -12,6 +12,8 @@ import os
 import hashlib
 import hmac
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+load_dotenv()
 
 from flask import Flask, request, jsonify, render_template, abort
 from pymongo import MongoClient, DESCENDING
@@ -68,12 +70,19 @@ def format_timestamp(iso_str: str) -> str:
         "th" if 11 <= day <= 13
         else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     )
-    return dt.strftime(f"%-d{suffix} %B %Y - %-I:%M %p UTC")
+
+    # Use strftime without %-d and %-I (not supported on Windows)
+    day_str = str(day)                          # e.g. "1" not "01"
+    hour = dt.hour % 12 or 12                   # convert to 12-hour
+    hour_str = str(hour)                        # e.g. "9" not "09"
+    am_pm = "AM" if dt.hour < 12 else "PM"
+    minute_str = dt.strftime("%M")              # e.g. "30"
+    rest = dt.strftime("%B %Y")                 # e.g. "April 2021"
+
+    return f"{day_str}{suffix} {rest} - {hour_str}:{minute_str} {am_pm} UTC"
 
 
-# ---------------------------------------------------------------------------
 # Webhook endpoint
-# ---------------------------------------------------------------------------
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -155,9 +164,7 @@ def webhook():
     return jsonify({"status": "ok"}), 200
 
 
-# ---------------------------------------------------------------------------
 # API – latest events for the polling UI
-# ---------------------------------------------------------------------------
 
 @app.route("/events", methods=["GET"])
 def get_events():
@@ -179,9 +186,7 @@ def get_events():
     return jsonify(events)
 
 
-# ---------------------------------------------------------------------------
 # UI
-# ---------------------------------------------------------------------------
 
 @app.route("/")
 def index():
@@ -189,9 +194,7 @@ def index():
     return render_template("index.html")
 
 
-# ---------------------------------------------------------------------------
 # Entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
