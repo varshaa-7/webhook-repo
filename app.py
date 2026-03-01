@@ -56,6 +56,36 @@ def utc_now_str() -> str:
 
 def format_timestamp(iso_str: str) -> str:
     """
+    Convert an ISO-8601 datetime string to IST (UTC+5:30).
+    Example: '1st March 2026 - 12:44 PM IST'
+    """
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return iso_str
+
+    # Convert UTC to IST (UTC + 5 hours 30 minutes)
+    from datetime import timedelta
+    ist_offset = timedelta(hours=5, minutes=30)
+    dt = dt + ist_offset
+
+    # Ordinal suffix for day
+    day = dt.day
+    suffix = (
+        "th" if 11 <= day <= 13
+        else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    )
+
+    # Format without %-d and %-I (not supported on Windows)
+    day_str = str(day)
+    hour = dt.hour % 12 or 12
+    hour_str = str(hour)
+    am_pm = "AM" if dt.hour < 12 else "PM"
+    minute_str = dt.strftime("%M")
+    rest = dt.strftime("%B %Y")
+
+    return f"{day_str}{suffix} {rest} - {hour_str}:{minute_str} {am_pm} IST"
+    """
     Convert an ISO-8601 datetime string to a human-readable UTC label.
     Example: '1st April 2021 - 9:30 PM UTC'
     """
